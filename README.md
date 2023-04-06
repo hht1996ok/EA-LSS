@@ -4,7 +4,7 @@
 ## News
 + **2023.4.6**  create README.md
 
- ![EA-BEV](./figure2.png)
+ ![EA-BEV](./page2.png)
  
 ## Main Result
 ### nuScenes detection test
@@ -31,7 +31,7 @@
 | +EA-BEV    | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
 
 ### Detect visualization results
-![ ](./figure5.png)
+![ ](./page5.png)
 
 ## Use EA-BEV
 ### install and date preparation
