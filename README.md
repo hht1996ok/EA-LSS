@@ -49,7 +49,7 @@ For environment installation method, please refer to [BEVFusion](https://github.
 # then train BEVFusion
 ./tools/dist_train.sh configs/EA-BEV/eabev_tf_4x8_10e_nusc_aug.py 8
 
-### evaluation example for bevfusion-pointpillar
+### evaluation example for EA-BEV
 ./tools/dist_test.sh configs/EA-BEV/eabev_ft_4x8_10e_nusc_aug.py ./work_dirs/ea-bev_tf.pth 8 --eval bbox
 ```
 
