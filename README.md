@@ -21,7 +21,7 @@
 | BEVFusion(MIT)    |  68.5       | 71.4       | 119.2 |
 |  +EA-BEV    | **69.4**       | **71.8**   | 123.6 |
 | BEVFusion(Peking University)    |  69.6       | 72.1       | 190.3 |
-|   +EA-BEV  ](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | **70.3**      | **72.6**    | 194.9|
+|  [ +EA-BEV  ](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | **70.3**      | **72.6**    | 194.9|
 
 ### nuScenes BEV map segmentation validation
 
