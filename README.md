@@ -53,4 +53,4 @@ For environment installation method, please refer to [BEVFusion](https://https:/
 ```
 
 ## Acknowlegement
-We sincerely thank the authors of [BEVFusion(Peking University)](https://https://github.com/ADLab-AutoDrive/BEVFusion), [BEVFusion(MIT)](https://github.com/mit-han-lab/bevfusion), [mmdetection3d](https://github.com/open-mmlab/mmdetection3d), [TransFusion](https://github.com/XuyangBai/TransFusion), [LSS](https://github.com/nv-tlabs/lift-splat-shoot), [CenterPoint](https://github.com/tianweiy/CenterPoint) for open sourcing their methods.
+We sincerely thank the authors of [BEVFusion(Peking University)](https://https://github.com/ADLab-AutoDrive/BEVFusion), [BEVFusion(MIT)](https://github.com/mit-han-lab/bevfusion), [mmdetection3d](https://github.com/open-mmlab/mmdetection3d), [TransFusion](https://github.com/XuyangBai/TransFusion) for open sourcing their methods.
