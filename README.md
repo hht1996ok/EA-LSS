@@ -1,5 +1,7 @@
-# EA-BEV
+# EA-BEV: Edge-aware Bird' s-Eye-View Projector for 3D Object Detection 
  ![EA-BEV](./page2.png)
+ 
+[paper](https://arxiv.org/abs/2303.17895)
 
 ## News
 + **2023.4.6**  create README.md
