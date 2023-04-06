@@ -1,10 +1,8 @@
 # EA-BEV
-
+ ![EA-BEV](./page2.png)
 
 ## News
 + **2023.4.6**  create README.md
-
- ![EA-BEV](./page2.png)
  
 ## Main Result
 ### nuScenes detection test
