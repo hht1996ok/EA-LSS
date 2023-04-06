@@ -30,7 +30,8 @@
 |  BEVFusion(MIT)      |  85.5       | 60.5       | 67.6 | 52.0 | 57.0 | 53.7 | 62.7 |
 | +EA-BEV    | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
 
-### Detect visualization results
+### Visualization results
+![ ](./page6.png)
 ![ ](./page5.png)
 
 ## Use EA-BEV
