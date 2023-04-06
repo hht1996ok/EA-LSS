@@ -11,7 +11,7 @@
 | Method                                                                   | mAP        | NDS        |
 | ------------------------------------------------------------------------- | ---------- | ---------- |
 | BEVFusion(Peking University)    |  71.3       | 73.3       |
-| [+EA-BEV](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | 71.8      | 73.6    |
+| [+EA-BEV](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | **71.8 **     | **73.6**    |
 
 ### nuScenes detection validation
 | Method                                                                    | mAP        | NDS        |  Latency(ms) |
