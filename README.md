@@ -34,7 +34,7 @@
 
 ## Use EA-BEV
 ### install and date preparation
-For environment installation method, please refer to [BEVFusion](https://https://github.com/ADLab-AutoDrive/BEVFusion).
+For environment installation method, please refer to [BEVFusion](https://github.com/ADLab-AutoDrive/BEVFusion).
 
 ### beachmark Evaluation and Training
 
@@ -52,4 +52,4 @@ For environment installation method, please refer to [BEVFusion](https://https:/
 ```
 
 ## Acknowlegement
-We sincerely thank the authors of [BEVFusion(Peking University)](https://https://github.com/ADLab-AutoDrive/BEVFusion), [BEVFusion(MIT)](https://github.com/mit-han-lab/bevfusion), [mmdetection3d](https://github.com/open-mmlab/mmdetection3d), [TransFusion](https://github.com/XuyangBai/TransFusion) for open sourcing their methods.
+We sincerely thank the authors of [BEVFusion(Peking University)](https://github.com/ADLab-AutoDrive/BEVFusion), [BEVFusion(MIT)](https://github.com/mit-han-lab/bevfusion), [mmdetection3d](https://github.com/open-mmlab/mmdetection3d), [TransFusion](https://github.com/XuyangBai/TransFusion) for open sourcing their methods.
