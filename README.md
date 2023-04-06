@@ -10,25 +10,25 @@
 ### nuScenes detection test
 | Method                                                                   | mAP        | NDS        |
 | ------------------------------------------------------------------------- | ---------- | ---------- |
-| **BEVFusion(Peking University)**    |  71.3       | 73.3       |
-| [**EA-BEV**](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | 71.8      | 73.6    |
+| BEVFusion(Peking University)    |  71.3       | 73.3       |
+| [+EA-BEV](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | 71.8      | 73.6    |
 
 ### nuScenes detection validation
 | Method                                                                    | mAP        | NDS        |  Latency(ms) |
 | ------------------------------------------------------------------------- | ---------- | ---------- |--------------|
-| BEVDept    |  35.1       | 47.5       | 110.3 |
-| ** EA-BEV **  | **40.4**       | **48.2**   | 114.8 |
+| BEVDepth    |  35.1       | 47.5       | 110.3 |
+|  +EA-BEV   | **40.4**       | **48.2**   | 114.8 |
 | BEVFusion(MIT)    |  68.5       | 71.4       | 119.2 |
-| ** EA-BEV **   | **69.4**       | **71.8**   | 123.6 |
+|  +EA-BEV    | **69.4**       | **71.8**   | 123.6 |
 | BEVFusion(Peking University)    |  69.6       | 72.1       | 190.3 |
-|  ** EA-BEV ** ](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | **70.3**      | **72.6**    | 194.9|
+|   +EA-BEV  ](configs/bevfusion/bevf_tf_20e_nusc_cam_lr.py)     | **70.3**      | **72.6**    | 194.9|
 
 ### nuScenes BEV map segmentation validation
 
 | Method    | Drivable | Ped.Cross. | Walkway | Stop Line  | Carpark | Divider | Mean |
 | ---------- | ---------- | ---------- |--------------| ---------- | ---------- | ---------- |--------------|
 |  BEVFusion(MIT)      |  85.5       | 60.5       | 67.6 | 52.0 | 57.0 | 53.7 | 62.7 |
-| ** EA-BEV **   | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
+| +EA-BEV    | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
 
 ### Detect visualization results
 ![ ](./figure5.pdf)
