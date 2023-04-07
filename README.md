@@ -1,5 +1,5 @@
 # EA-BEV: Edge-aware Bird' s-Eye-View Projector for 3D Object Detection 
- ![EA-BEV](./page2.png)
+ ![EA-BEV](./photo/page2.png)
  
 [paper](https://arxiv.org/abs/2303.17895)
 
@@ -31,8 +31,8 @@
 | **+EA-BEV**    | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
 
 ### Visualization results
-![ ](./page6.png)
-![ ](./page5.png)
+![ ](./photo/page6.png)
+![ ](./photo/page5.png)
 
 ## Use EA-BEV
 ### install and date preparation
