@@ -170,8 +170,8 @@ log_config = dict(
            dict(type='TensorboardLoggerHook')])
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = 'work_dirs/transfusion_nusc_voxel_L/epoch_20.pth'
-load_lift_from = 'work_dirs/bevf_tf_4x8_20e_nusc_cam.py/epoch_20.pth'
+load_from = 'transfusion_nusc_voxel_L/epoch_20.pth'
+load_lift_from = 'eabev_tf_4x8_20e_nusc_cam/epoch_20.pth'
 
 resume_from = None
 workflow = [('train', 1)]
