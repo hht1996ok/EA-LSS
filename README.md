@@ -31,7 +31,9 @@
 | **+EA-BEV**    | **85.8**  | **61.1**   | **68.0** | **52.3** | 56.8 | **54.5** | **63.1** | 
 
 ### Visualization results
+#### nuScenes 3D object detection
 ![ ](./photo/page6.png)
+#### nuScenes map segmentation
 ![ ](./photo/page5.png)
 
 ## Use EA-BEV
