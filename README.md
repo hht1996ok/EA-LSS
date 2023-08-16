@@ -13,6 +13,7 @@
 | BEVFusion(Peking University)    |  71.3       | 73.3       |
 | [**+EA-LSS**](configs/EABEV/eabev_tf_4x8_10e_nusc_aug.py)     | **72.2**     | **74.4**    |
 | **+EA-LSS***     | **76.5**     | **77.6**    |
+
 *reprsent the test time augment and model ensemble.
 
 ### nuScenes detection validation
