@@ -1,5 +1,5 @@
 # EA-LSS: Edge-aware Lift-splat-shot Framework for 3D BEV Object Detection
- ![EA-LSS](./photo/page2.png)
+ ![EA-LSS](./photo/EA-LSS_arch.png)
  
 [paper](https://arxiv.org/abs/2303.17895)
 
