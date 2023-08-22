@@ -18,6 +18,7 @@
 ## News
 + **2023.8.22**   EA-LSS achieved the first place in the nuScenes 3D object detection leaderboard！
 + **2023.8.16**   create README.md
+
  ![leaderboard](./photo/leaderboard.png)
 
 ## Abstract
