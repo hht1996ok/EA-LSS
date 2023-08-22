@@ -1,3 +1,5 @@
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/ea-bev-edge-aware-bird-s-eye-view-projector/3d-object-detection-on-nuscenes)](https://paperswithcode.com/sota/3d-object-detection-on-nuscenes?p=ea-bev-edge-aware-bird-s-eye-view-projector)
+
 # EA-LSS: Edge-aware Lift-splat-shot Framework for 3D BEV Object Detection
  ![EA-LSS](./photo/EA-LSS_arch.png)
 
