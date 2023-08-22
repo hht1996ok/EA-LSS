@@ -18,6 +18,7 @@
 ## News
 + **2023.8.22**   EA-LSS achieved the first place in the nuScenes 3D object detection leaderboard！
 + **2023.8.16**   create README.md
+ ![](./photo/leaderboard.png)
 
 ## Abstract
 In recent years, great progress has been made in the Lift-Splat-Shot-based (LSS-based) 3D object detection method. However, inaccurate depth estimation remains an important constraint to the accuracy of camera-only and multi-modal 3D object detection models, especially in regions where the depth changes significantly (i.e., the ''depth jump'' problem). In this paper, we proposed a novel Edge-aware Lift-splat-shot (EA-LSS) framework. Specifically, edge-aware depth fusion (EADF) module is proposed to alleviate the ''depth jump'' problem and fine-grained depth (FGD) module to further enforce refined supervision on depth. Our EA-LSS framework is compatible for any LSS-based 3D object detection models, and effectively boosts their performances with negligible increment of inference time. Experiments on nuScenes benchmarks demonstrate that EA-LSS is effective in either camera-only or multi-modal models. It is worth mentioning that EA-LSS achieved the state-of-the-art performance on nuScenes test benchmarks with mAP and NDS of 76.6% and 77.6%, respectively.
