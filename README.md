@@ -1,7 +1,7 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/ea-bev-edge-aware-bird-s-eye-view-projector/3d-object-detection-on-nuscenes)](https://paperswithcode.com/sota/3d-object-detection-on-nuscenes?p=ea-bev-edge-aware-bird-s-eye-view-projector)
 
 # EA-LSS: Edge-aware Lift-splat-shot Framework for 3D BEV Object Detection
- ![EA-LSS](./photo/EA-LSS_arch.png)
+ ![pipeline](./photo/EA-LSS_arch.png)
 
 ### [leaderboard](https://www.nuscenes.org/object-detection) | [paper](https://arxiv.org/abs/2303.17895)
 
@@ -18,7 +18,7 @@
 ## News
 + **2023.8.22**   EA-LSS achieved the first place in the nuScenes 3D object detection leaderboard！
 + **2023.8.16**   create README.md
- ![](./photo/leaderboard.png)
+ ![leaderboard](./photo/leaderboard.png)
 
 ## Abstract
 In recent years, great progress has been made in the Lift-Splat-Shot-based (LSS-based) 3D object detection method. However, inaccurate depth estimation remains an important constraint to the accuracy of camera-only and multi-modal 3D object detection models, especially in regions where the depth changes significantly (i.e., the ''depth jump'' problem). In this paper, we proposed a novel Edge-aware Lift-splat-shot (EA-LSS) framework. Specifically, edge-aware depth fusion (EADF) module is proposed to alleviate the ''depth jump'' problem and fine-grained depth (FGD) module to further enforce refined supervision on depth. Our EA-LSS framework is compatible for any LSS-based 3D object detection models, and effectively boosts their performances with negligible increment of inference time. Experiments on nuScenes benchmarks demonstrate that EA-LSS is effective in either camera-only or multi-modal models. It is worth mentioning that EA-LSS achieved the state-of-the-art performance on nuScenes test benchmarks with mAP and NDS of 76.6% and 77.6%, respectively.
@@ -48,7 +48,7 @@ In recent years, great progress has been made in the Lift-Splat-Shot-based (LSS-
 
 ### Visualization results
 #### nuScenes 3D object detection
-![ ](./photo/page6.png)
+![Visualization](./photo/page6.png)
 
 
 ## Acknowlegement
