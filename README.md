@@ -9,7 +9,7 @@
 ```bibtex
 @article{hu2023ealss,
   title={EA-LSS: Edge-aware Lift-splat-shot Framework for 3D BEV Object Detection},
-  author={Haotian Hu and Fanyi Wang and Jingwen Su and Laifeng Hu and Weiye Fang and Jingwei Xu and Zhiwang Zhang},
+  author={Haotian Hu and Fanyi Wang and Jingwen Su and Yaonong Wang and Laifeng Hu and Weiye Fang and Jingwei Xu and Zhiwang Zhang},
   journal={arXiv preprint arXiv:2303.17895},
   year={2023}
 }
