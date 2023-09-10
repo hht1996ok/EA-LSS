@@ -1,6 +1,7 @@
 import numpy as np
 from mmcv import is_tuple_of
 from mmcv.utils import build_from_cfg
+from mmcv.parallel import DataContainer as DC
 
 from mmdet3d.core import VoxelGenerator
 from mmdet3d.core.bbox import box_np_ops
@@ -14,11 +15,40 @@ from typing import Any, Dict
 
 from numpy import random
 
-
 '''
 The implementation of GlobalRotScaleTransBEV and RandomFlip3DBEV followed
-https://github.com/mit-han-lab/bevfusion/blob/dev/readme/mmdet3d/datasets/pipelines/transforms_3d.py#L134
+https://github.com/mit-han-lab/bevfusion/blob/dev/readme/mmdet3d/datasets/pipelines/transforms_3d.py #L134
 '''
+
+
+@PIPELINES.register_module()
+class ModalMask3D(object):
+
+    def __init__(self, mode='test', mask_modal='image', **kwargs):
+        super(ModalMask3D, self).__init__()
+        self.mode = mode
+        self.mask_modal = mask_modal
+
+    def __call__(self, input_dict):
+        if self.mode == 'test':
+            if self.mask_modal == 'image':
+                input_dict['img'] = [0. * item for item in input_dict['img']]
+            if self.mask_modal == 'points':
+                input_dict['points'].tensor = input_dict['points'].tensor * 0.0
+        else:
+            seed = np.random.rand()
+            if seed > 0.75:
+                input_dict['img'] = [0. * item for item in input_dict['img']]
+            elif seed > 0.5:
+                input_dict['points'].tensor = input_dict['points'].tensor * 0.0
+
+        return input_dict
+
+    def __repr__(self):
+        """str: Return a string that describes the module."""
+        repr_str = self.__class__.__name__
+        return repr_str
+
 
 @PIPELINES.register_module()
 class GlobalRotScaleTransBEV:
@@ -32,22 +62,50 @@ class GlobalRotScaleTransBEV:
         transform = np.eye(4).astype(np.float32)
 
         if self.is_train:
-            scale = random.uniform(*self.resize_lim)
-            theta = random.uniform(*self.rot_lim)
-            translation = np.array([random.normal(0, self.trans_lim) for i in range(3)])
+            if 'pcd_scale_factor' in data:
+                scale = data['pcd_scale_factor']
+            else:
+                scale = random.uniform(*self.resize_lim)
+            if 'translation_std' in data:
+                translation = np.array([data['translation_std'] for i in range(3)])
+            else:
+                translation = np.array([random.normal(0, self.trans_lim) for i in range(3)])
+            if 'rot_range' in data:
+                theta = data['rot_range']
+            else:
+                theta = random.uniform(*self.rot_lim)
             rotation = np.eye(3)
+            data['aug_scale'] = scale
+            data['aug_theta'] = theta
+            data['aug_translation'] = translation
 
             if "points" in data:
                 data["points"].rotate(-theta)
                 data["points"].translate(translation)
                 data["points"].scale(scale)
 
-            gt_boxes = data["gt_bboxes_3d"]
-            # print(gt_boxes.rotate(theta))
-            rotation = rotation @ gt_boxes.rotate(theta).numpy()
-            gt_boxes.translate(translation)
-            gt_boxes.scale(scale)
-            data["gt_bboxes_3d"] = gt_boxes
+            if "gt_bboxes_3d" in data:
+                gt_boxes = data["gt_bboxes_3d"]
+                rotation = rotation @ gt_boxes.rotate(theta).numpy()
+                gt_boxes.translate(translation)
+                gt_boxes.scale(scale)
+                data["gt_bboxes_3d"] = gt_boxes
+
+            transform[:3, :3] = rotation.T * scale
+            transform[:3, 3] = translation * scale
+        else:
+            rotation = np.eye(3)
+            translation = np.array([random.normal(0, 0) for i in range(3)])
+            scale = data['pcd_scale_factor']
+
+            data['aug_scale'] = scale
+            if "points" in data:
+                data["points"].scale(scale)
+
+            if "gt_bboxes_3d" in data:
+                gt_boxes = data["gt_bboxes_3d"]
+                gt_boxes.scale(scale)
+                data["gt_bboxes_3d"] = gt_boxes
 
             transform[:3, :3] = rotation.T * scale
             transform[:3, 3] = translation * scale
@@ -55,11 +113,20 @@ class GlobalRotScaleTransBEV:
         data["lidar_aug_matrix"] = transform
         return data
 
+
 @PIPELINES.register_module()
 class RandomFlip3DBEV:
     def __call__(self, data):
-        flip_horizontal = random.choice([0, 1])
-        flip_vertical = random.choice([0, 1])
+        if 'pcd_horizontal_flip' in data:
+            flip_horizontal = data['pcd_horizontal_flip']
+        else:
+            flip_horizontal = random.choice([0, 1])
+        if 'pcd_vertical_flip' in data:
+            flip_vertical = data['pcd_vertical_flip']
+        else:
+            flip_vertical = random.choice([0, 1])
+        data['flip_horizontal'] = False
+        data['flip_vertical'] = False
 
         rotation = np.eye(3)
         if flip_horizontal:
@@ -70,6 +137,7 @@ class RandomFlip3DBEV:
                 data["gt_bboxes_3d"].flip("horizontal")
             if "gt_masks_bev" in data:
                 data["gt_masks_bev"] = data["gt_masks_bev"][:, :, ::-1].copy()
+            data['flip_horizontal'] = True
 
         if flip_vertical:
             rotation = np.array([[-1, 0, 0], [0, 1, 0], [0, 0, 1]]) @ rotation
@@ -79,9 +147,98 @@ class RandomFlip3DBEV:
                 data["gt_bboxes_3d"].flip("vertical")
             if "gt_masks_bev" in data:
                 data["gt_masks_bev"] = data["gt_masks_bev"][:, ::-1, :].copy()
+            data['flip_vertical'] = True
 
         data["lidar_aug_matrix"][:3, :] = rotation @ data["lidar_aug_matrix"][:3, :]
         return data
+
+
+@PIPELINES.register_module()
+class CustomCollect3D(object):
+    """Collect data from the loader relevant to the specific task.
+    This is usually the last stage of the data loader pipeline. Typically keys
+    is set to some subset of "img", "proposals", "gt_bboxes",
+    "gt_bboxes_ignore", "gt_labels", and/or "gt_masks".
+    The "img_meta" item is always populated.  The contents of the "img_meta"
+    dictionary depends on "meta_keys". By default this includes:
+        - 'img_shape': shape of the image input to the network as a tuple \
+            (h, w, c).  Note that images may be zero padded on the \
+            bottom/right if the batch tensor is larger than this shape.
+        - 'scale_factor': a float indicating the preprocessing scale
+        - 'flip': a boolean indicating if image flip transform was used
+        - 'filename': path to the image file
+        - 'ori_shape': original shape of the image as a tuple (h, w, c)
+        - 'pad_shape': image shape after padding
+        - 'lidar2img': transform from lidar to image
+        - 'depth2img': transform from depth to image
+        - 'cam2img': transform from camera to image
+        - 'pcd_horizontal_flip': a boolean indicating if point cloud is \
+            flipped horizontally
+        - 'pcd_vertical_flip': a boolean indicating if point cloud is \
+            flipped vertically
+        - 'box_mode_3d': 3D box mode
+        - 'box_type_3d': 3D box type
+        - 'img_norm_cfg': a dict of normalization information:
+            - mean: per channel mean subtraction
+            - std: per channel std divisor
+            - to_rgb: bool indicating if bgr was converted to rgb
+        - 'pcd_trans': point cloud transformations
+        - 'sample_idx': sample index
+        - 'pcd_scale_factor': point cloud scale factor
+        - 'pcd_rotation': rotation applied to point cloud
+        - 'pts_filename': path to point cloud file.
+    Args:
+        keys (Sequence[str]): Keys of results to be collected in ``data``.
+        meta_keys (Sequence[str], optional): Meta keys to be converted to
+            ``mmcv.DataContainer`` and collected in ``data[img_metas]``.
+            Default: ('filename', 'ori_shape', 'img_shape', 'lidar2img',
+            'depth2img', 'cam2img', 'pad_shape', 'scale_factor', 'flip',
+            'pcd_horizontal_flip', 'pcd_vertical_flip', 'box_mode_3d',
+            'box_type_3d', 'img_norm_cfg', 'pcd_trans',
+            'sample_idx', 'pcd_scale_factor', 'pcd_rotation', 'pts_filename')
+    """
+
+    def __init__(self,
+                 keys,
+                 meta_keys=('filename', 'ori_shape', 'img_shape', 'lidar2img',
+                            'depth2img', 'cam2img', 'pad_shape',
+                            'scale_factor', 'flip', 'pcd_horizontal_flip',
+                            'pcd_vertical_flip', 'box_mode_3d', 'box_type_3d',
+                            'img_norm_cfg', 'pcd_trans', 'sample_idx', 'prev_idx', 'next_idx',
+                            'pcd_scale_factor', 'pcd_rotation', 'pts_filename',
+                            'transformation_3d_flow', 'scene_token',
+                            'can_bus', 'rot_range',
+                            )):
+        self.keys = keys
+        self.meta_keys = meta_keys
+
+    def __call__(self, results):
+        """Call function to collect keys in results. The keys in ``meta_keys``
+        will be converted to :obj:`mmcv.DataContainer`.
+        Args:
+            results (dict): Result dict contains the data to collect.
+        Returns:
+            dict: The result dict contains the following keys
+                - keys in ``self.keys``
+                - ``img_metas``
+        """
+
+        data = {}
+        img_metas = {}
+
+        for key in self.meta_keys:
+            if key in results:
+                img_metas[key] = results[key]
+
+        data['img_metas'] = DC(img_metas, cpu_only=True)
+        for key in self.keys:
+            data[key] = results[key]
+        return data
+
+    def __repr__(self):
+        """str: Return a string that describes the module."""
+        return self.__class__.__name__ + \
+               f'(keys={self.keys}, meta_keys={self.meta_keys})'
 
 
 @PIPELINES.register_module()
@@ -192,7 +349,7 @@ class RandomFlip3D(RandomFlip):
             self.random_flip_data_3d(input_dict, 'vertical')
             input_dict['transformation_3d_flow'].extend(['VF'])
         # print('after randomflip3d call', isinstance(input_dict['img'], list))
-        
+
         return input_dict
 
     def __repr__(self):
@@ -628,7 +785,7 @@ class PointsRangeFilter(object):
         clean_points = points[points_mask]
         input_dict['points'] = clean_points
         # print('after PointsRangeFilter call', isinstance(input_dict['img'], list))
-        
+
         return input_dict
 
     def __repr__(self):
@@ -764,7 +921,7 @@ class BackgroundPointsFilter(object):
     def __init__(self, bbox_enlarge_range):
         assert (is_tuple_of(bbox_enlarge_range, float)
                 and len(bbox_enlarge_range) == 3) \
-            or isinstance(bbox_enlarge_range, float), \
+               or isinstance(bbox_enlarge_range, float), \
             f'Invalid arguments bbox_enlarge_range {bbox_enlarge_range}'
 
         if isinstance(bbox_enlarge_range, float):
@@ -836,7 +993,7 @@ class VoxelBasedPointSampler(object):
         self.time_dim = time_dim
         if prev_sweep_cfg is not None:
             assert prev_sweep_cfg['max_num_points'] == \
-                cur_sweep_cfg['max_num_points']
+                   cur_sweep_cfg['max_num_points']
             self.prev_voxel_generator = VoxelGenerator(**prev_sweep_cfg)
             self.prev_voxel_num = self.prev_voxel_generator._max_voxels
         else:
@@ -861,7 +1018,7 @@ class VoxelBasedPointSampler(object):
                 sampler._max_voxels - voxels.shape[0], sampler._max_num_points,
                 point_dim
             ],
-                                      dtype=points.dtype)
+                dtype=points.dtype)
             padding_points[:] = voxels[0]
             sample_points = np.concatenate([voxels, padding_points], axis=0)
         else:
@@ -964,7 +1121,7 @@ class Randomdropforeground(object):
     def __init__(self,
                  drop_rate=0.5,
                  ):
-        self.drop_rate=drop_rate
+        self.drop_rate = drop_rate
         print('drop foreground points, ', self.drop_rate)
 
     @staticmethod
@@ -981,14 +1138,14 @@ class Randomdropforeground(object):
         masks = box_np_ops.points_in_rbbox(points.coord.numpy(), boxes)
         points = points[np.logical_not(masks.any(-1))]
         return points
-    
+
     def __call__(self, input_dict):
         gt_bboxes_3d = input_dict['gt_bboxes_3d']
         gt_labels_3d = input_dict['gt_labels_3d']
         # change to float for blending operation
         points = input_dict['points']
         drop_foreground = False
-        if np.random.rand() <self.drop_rate:
+        if np.random.rand() < self.drop_rate:
             points = self.remove_points_in_boxes(points, gt_bboxes_3d.tensor.numpy())
             drop_foreground = True
         input_dict['points'] = points

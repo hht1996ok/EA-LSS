@@ -5,7 +5,7 @@ from mmcv.runner import force_fp32
 from os import path as osp
 from torch import nn as nn
 from torch.nn import functional as F
-
+import pdb
 from mmdet3d.core import (Box3DMode, Coord3DMode, bbox3d2result,
                           merge_aug_bboxes_3d, show_result)
 from mmdet3d.ops import Voxelization
@@ -181,7 +181,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         #     print(img_feats[i].shape)
         outs = self.pts_bbox_head(pts_feats, img_feats, img_metas, gt_bboxes_3d)
         # outs = self.pts_bbox_head(pts_feats, img_feats, img_metas)
-        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs]
+        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs, img_metas]
         losses = self.pts_bbox_head.loss(*loss_inputs)
         return losses
 
@@ -196,7 +196,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         ]
         return bbox_results
 
-    def simple_test(self, points, img_metas, img=None, rescale=False):
+    def simple_test(self, points, img_metas, radar=None, img=None, rescale=False):
         """Test function without augmentaiton."""
         img_feats, pts_feats = self.extract_feat(
             points, img=img, img_metas=img_metas)
@@ -213,3 +213,42 @@ class TransFusionDetector(MVXTwoStageDetector):
             for result_dict, img_bbox in zip(bbox_list, bbox_img):
                 result_dict['img_bbox'] = img_bbox
         return bbox_list
+
+    def aug_test(self, points, img_metas, radar=None, img=None, lidar_aug_matrix=None, rescale=False):
+        """Test function with augmentaiton."""
+        img_feats, pts_feats = self.extract_feats(points, img=img, radar=radar, img_metas=img_metas, lidar_aug_matrix=lidar_aug_matrix)
+
+        bbox_list = dict()
+        if pts_feats and self.with_pts_bbox:
+            bbox_pts = self.aug_test_pts(pts_feats, img_feats, img_metas, rescale)
+            bbox_list.update(pts_bbox=bbox_pts)
+        return [bbox_list]
+
+    def extract_feats(self, points, img, radar, img_metas, lidar_aug_matrix):
+        """Extract point and image features of multiple samples."""
+        img_feats_list = []
+        pts_feats_list = []
+        for i in range(len(points)):
+            img_feats, pts_feats  = self.extract_feat(points[i], img=img[i], img_metas=img_metas[i])
+            img_feats_list.append(img_feats)
+            pts_feats_list.append(pts_feats)
+
+        return img_feats_list, pts_feats_list
+
+    def aug_test_pts(self, feats, x_img, img_metas, rescale=False):
+        """Test function of point cloud branch with augmentaiton."""
+        # only support aug_test for one sample
+        aug_bboxes = []
+        for x, img_feature, img_meta in zip(feats, x_img, img_metas):
+            outs = self.pts_bbox_head(x, img_feature, img_meta)
+            bbox_list = self.pts_bbox_head.get_bboxes(
+                outs, img_meta, rescale=rescale)
+            bbox_list = [
+                dict(boxes_3d=bboxes, scores_3d=scores, labels_3d=labels)
+                for bboxes, scores, labels in bbox_list
+            ]
+            aug_bboxes.append(bbox_list[0])
+        # after merging, bboxes will be rescaled to the original image size
+        merged_bboxes = merge_aug_bboxes_3d(aug_bboxes, img_metas,
+                                            self.pts_bbox_head.test_cfg)
+        return merged_bboxes

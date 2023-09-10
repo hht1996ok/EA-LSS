@@ -105,7 +105,6 @@ data = dict(
         data_root=data_root,
         num_views=num_views,
         ann_file=data_root + '/nuscenes_infos_val.pkl',
-        # ann_file=data_root + '/nuscenes_infos_test.pkl',
         load_interval=1,
         pipeline=test_pipeline,
         classes=class_names,

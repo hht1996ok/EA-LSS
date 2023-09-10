@@ -29,6 +29,9 @@ class MVXTwoStageDetector(Base3DDetector):
                  pts_backbone=None,
                  img_neck=None,
                  pts_neck=None,
+                 img_bev_backbone=None,
+                 img_bev_neck=None,
+                 img_bbox_head=None,
                  pts_bbox_head=None,
                  img_roi_head=None,
                  img_rpn_head=None,
@@ -66,6 +69,16 @@ class MVXTwoStageDetector(Base3DDetector):
             self.img_backbone = builder.build_backbone(img_backbone)
         if img_neck is not None:
             self.img_neck = builder.build_neck(img_neck)
+        if img_bev_backbone is not None:
+            self.img_bev_backbone = builder.build_backbone(img_bev_backbone)
+        if img_bev_neck is not None:
+            self.img_bev_neck = builder.build_neck(img_bev_neck)
+        if img_bbox_head is not None:
+            pts_train_cfg = train_cfg.pts if train_cfg else None
+            img_bbox_head.update(train_cfg=pts_train_cfg)
+            pts_test_cfg = test_cfg.pts if test_cfg else None
+            img_bbox_head.update(test_cfg=pts_test_cfg)
+            self.img_bbox_head = builder.build_head(img_bbox_head)
         if img_rpn_head is not None:
             self.img_rpn_head = builder.build_head(img_rpn_head)
         if img_roi_head is not None:
@@ -97,6 +110,8 @@ class MVXTwoStageDetector(Base3DDetector):
                     m.init_weights()
             else:
                 self.img_neck.init_weights()
+        if self.with_img_bev_backbone:
+            self.img_bev_backbone.init_weights(pretrained=pts_pretrained)
 
         if self.with_img_roi_head:
             self.img_roi_head.init_weights(img_pretrained)
@@ -104,6 +119,8 @@ class MVXTwoStageDetector(Base3DDetector):
             self.img_rpn_head.init_weights()
         if self.with_pts_bbox:
             self.pts_bbox_head.init_weights()
+        if self.with_img_bbox:
+            self.img_bbox_head.init_weights()
         if self.with_pts_roi_head:
             self.pts_roi_head.init_weights()
 
@@ -159,6 +176,21 @@ class MVXTwoStageDetector(Base3DDetector):
     def with_img_neck(self):
         """bool: Whether the detector has a neck in image branch."""
         return hasattr(self, 'img_neck') and self.img_neck is not None
+
+    @property
+    def with_img_bev_backbone(self):
+        """bool: Whether the detector has a neck in image branch."""
+        return hasattr(self, 'img_bev_backbone') and self.img_bev_backbone is not None
+
+    @property
+    def with_img_bev_neck(self):
+        """bool: Whether the detector has a neck in image branch."""
+        return hasattr(self, 'img_bev_neck') and self.img_bev_neck is not None
+
+    @property
+    def with_img_bbox_head(self):
+        """bool: Whether the detector has a neck in image branch."""
+        return hasattr(self, 'img_bbox_head') and self.img_bbox_head is not None
 
     @property
     def with_pts_neck(self):
@@ -219,8 +251,6 @@ class MVXTwoStageDetector(Base3DDetector):
         x = self.pts_backbone(x)
         if self.with_pts_neck:
             x = self.pts_neck(x)
-    
-        
         return x
 
     def extract_feat(self, points, img, img_metas, gt_bboxes_3d=None):

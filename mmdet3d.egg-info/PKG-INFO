@@ -1,3 +1,25 @@
+Metadata-Version: 2.1
+Name: mmdet3d
+Version: 0.11.0
+Summary: OpenMMLab's next-generation platformfor general 3D object detection.
+Home-page: https://github.com/open-mmlab/mmdetection3d
+Author: OpenMMLab
+Author-email: zwwdev@gmail.com
+License: Apache License 2.0
+Keywords: computer vision,3D object detection
+Classifier: Development Status :: 4 - Beta
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown
+Provides-Extra: all
+Provides-Extra: tests
+Provides-Extra: build
+Provides-Extra: optional
+License-File: LICENSE
+
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/ea-bev-edge-aware-bird-s-eye-view-projector/3d-object-detection-on-nuscenes)](https://paperswithcode.com/sota/3d-object-detection-on-nuscenes?p=ea-bev-edge-aware-bird-s-eye-view-projector)
 
 # EA-LSS: Edge-aware Lift-splat-shot Framework for 3D BEV Object Detection

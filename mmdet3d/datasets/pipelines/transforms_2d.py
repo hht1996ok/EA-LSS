@@ -4,6 +4,7 @@ import mmcv
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Resize, Normalize, Pad
 
+
 @PIPELINES.register_module()
 class ResizeMultiViewImage(Resize):
 
@@ -40,7 +41,7 @@ class ResizeMultiViewImage(Resize):
                         return_scale=True,
                         backend=self.backend)
                 img_list.append(img)
-            
+
             results['img'] = img_list
             # print(len(results['img']), [im.shape for im in results['img']])
             scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
@@ -81,8 +82,6 @@ class ResizeMultiViewImage(Resize):
         return results
 
 
-
-
 @PIPELINES.register_module()
 class PadMultiViewImage(Pad):
     def __init__(self, size=None, size_divisor=None, pad_val=0):
@@ -109,8 +108,8 @@ class NormalizeMultiViewImage(Normalize):
     def __init__(self, mean, std, to_rgb=True):
         super(NormalizeMultiViewImage, self).__init__(
             mean=mean, std=std, to_rgb=to_rgb)
-    def __call__(self, results):
 
+    def __call__(self, results):
         results['img'] = [mmcv.imnormalize(
             img, self.mean, self.std, self.to_rgb) for img in results['img']]
         results['img_norm_cfg'] = dict(
@@ -159,12 +158,12 @@ class PhotoMetricDistortionMultiViewImage:
         new_imgs = []
         for img in imgs:
             assert img.dtype == np.float32, \
-                'PhotoMetricDistortion needs the input image of dtype np.float32,'\
+                'PhotoMetricDistortion needs the input image of dtype np.float32,' \
                 ' please set "to_float32=True" in "LoadImageFromFile" pipeline'
             # random brightness
             if random.randint(2):
                 delta = random.uniform(-self.brightness_delta,
-                                    self.brightness_delta)
+                                       self.brightness_delta)
                 img += delta
 
             # mode == 0 --> do random contrast first
@@ -173,7 +172,7 @@ class PhotoMetricDistortionMultiViewImage:
             if mode == 1:
                 if random.randint(2):
                     alpha = random.uniform(self.contrast_lower,
-                                        self.contrast_upper)
+                                           self.contrast_upper)
                     img *= alpha
 
             # convert color from BGR to HSV
@@ -182,7 +181,7 @@ class PhotoMetricDistortionMultiViewImage:
             # random saturation
             if random.randint(2):
                 img[..., 1] *= random.uniform(self.saturation_lower,
-                                            self.saturation_upper)
+                                              self.saturation_upper)
 
             # random hue
             if random.randint(2):
@@ -197,7 +196,7 @@ class PhotoMetricDistortionMultiViewImage:
             if mode == 0:
                 if random.randint(2):
                     alpha = random.uniform(self.contrast_lower,
-                                        self.contrast_upper)
+                                           self.contrast_upper)
                     img *= alpha
 
             # randomly swap channels
@@ -267,7 +266,7 @@ class RandomScaleImageMultiViewImage(object):
         rand_scale = self.scales[0]
         img_shape = results['img_shape']
         y_size = int(img_shape[0] * rand_scale)
-        x_size = int(img_shape[1] * rand_scale) 
+        x_size = int(img_shape[1] * rand_scale)
         scale_factor = np.eye(4)
         scale_factor[0, 0] *= rand_scale
         scale_factor[1, 1] *= rand_scale

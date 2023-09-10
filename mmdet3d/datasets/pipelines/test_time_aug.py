@@ -15,26 +15,26 @@ class MultiScaleFlipAug3D(object):
         img_scale (tuple | list[tuple]: Images scales for resizing.
         pts_scale_ratio (float | list[float]): Points scale ratios for
             resizing.
-        flip (bool): Whether apply flip augmentation. Defaults to False.
-        flip_direction (str | list[str]): Flip augmentation directions
-            for images, options are "horizontal" and "vertical".
+        flip (bool, optional): Whether apply flip augmentation.
+            Defaults to False.
+        flip_direction (str | list[str], optional): Flip augmentation
+            directions for images, options are "horizontal" and "vertical".
             If flip_direction is list, multiple flip augmentations will
             be applied. It has no effect when ``flip == False``.
             Defaults to "horizontal".
-        pcd_horizontal_flip (bool): Whether apply horizontal flip augmentation
-            to point cloud. Defaults to True. Note that it works only when
-            'flip' is turned on.
-        pcd_vertical_flip (bool): Whether apply vertical flip augmentation
-            to point cloud. Defaults to True. Note that it works only when
-            'flip' is turned on.
+        pcd_horizontal_flip (bool, optional): Whether apply horizontal
+            flip augmentation to point cloud. Defaults to True.
+            Note that it works only when 'flip' is turned on.
+        pcd_vertical_flip (bool, optional): Whether apply vertical flip
+            augmentation to point cloud. Defaults to True.
+            Note that it works only when 'flip' is turned on.
     """
 
     def __init__(self,
                  transforms,
                  img_scale,
-                 pts_scale_ratio,
+                 pts_scale_ratio=[1.0],
                  flip=False,
-                 flip_direction='horizontal',
                  pcd_horizontal_flip=False,
                  pcd_vertical_flip=False):
         self.transforms = Compose(transforms)
@@ -50,18 +50,6 @@ class MultiScaleFlipAug3D(object):
         self.pcd_horizontal_flip = pcd_horizontal_flip
         self.pcd_vertical_flip = pcd_vertical_flip
 
-        self.flip_direction = flip_direction if isinstance(
-            flip_direction, list) else [flip_direction]
-        assert mmcv.is_list_of(self.flip_direction, str)
-        if not self.flip and self.flip_direction != ['horizontal']:
-            warnings.warn(
-                'flip_direction has no effect when flip is set to False')
-        if (self.flip and not any([(t['type'] == 'RandomFlip3D'
-                                    or t['type'] == 'RandomFlip')
-                                   for t in transforms])):
-            warnings.warn(
-                'flip has no effect when RandomFlip is not in transforms')
-
     def __call__(self, results):
         """Call function to augment common fields in results.
 
@@ -69,7 +57,7 @@ class MultiScaleFlipAug3D(object):
             results (dict): Result dict contains the data to augment.
 
         Returns:
-            dict: The result dict contains the data that is augmented with \
+            dict: The result dict contains the data that is augmented with
                 different scales and flips.
         """
         aug_data = []
@@ -77,31 +65,21 @@ class MultiScaleFlipAug3D(object):
         # modified from `flip_aug = [False, True] if self.flip else [False]`
         # to reduce unnecessary scenes when using double flip augmentation
         # during test time
-        flip_aug = [True] if self.flip else [False]
         pcd_horizontal_flip_aug = [False, True] \
             if self.flip and self.pcd_horizontal_flip else [False]
         pcd_vertical_flip_aug = [False, True] \
             if self.flip and self.pcd_vertical_flip else [False]
-        for scale in self.img_scale:
-            for pts_scale_ratio in self.pts_scale_ratio:
-                for flip in flip_aug:
-                    for pcd_horizontal_flip in pcd_horizontal_flip_aug:
-                        for pcd_vertical_flip in pcd_vertical_flip_aug:
-                            for direction in self.flip_direction:
-                                # results.copy will cause bug
-                                # since it is shallow copy
-                                _results = deepcopy(results)
-                                _results['scale'] = scale
-                                _results['flip'] = flip
-                                _results['pcd_scale_factor'] = \
-                                    pts_scale_ratio
-                                _results['flip_direction'] = direction
-                                _results['pcd_horizontal_flip'] = \
-                                    pcd_horizontal_flip
-                                _results['pcd_vertical_flip'] = \
-                                    pcd_vertical_flip
-                                data = self.transforms(_results)
-                                aug_data.append(data)
+        for pts_scale_ratio in self.pts_scale_ratio:
+            for pcd_horizontal_flip in pcd_horizontal_flip_aug:
+                for pcd_vertical_flip in pcd_vertical_flip_aug:
+                    # results.copy will cause bug
+                    # since it is shallow copy
+                    _results = deepcopy(results)
+                    _results['pcd_scale_factor'] = pts_scale_ratio
+                    _results['pcd_horizontal_flip'] = pcd_horizontal_flip
+                    _results['pcd_vertical_flip'] = pcd_vertical_flip
+                    data = self.transforms(_results)
+                    aug_data.append(data)
         # list of dict to dict of list
         aug_data_dict = {key: [] for key in aug_data[0]}
         for data in aug_data:

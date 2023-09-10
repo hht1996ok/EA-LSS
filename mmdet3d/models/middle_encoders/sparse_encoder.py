@@ -167,8 +167,7 @@ class SparseEncoder(nn.Module):
                             indice_key=f'spconv{i + 1}',
                             conv_type='SparseConv3d'))
                 elif block_type == 'basicblock':
-                    if j == len(blocks) - 1 and i != len(
-                            self.encoder_channels) - 1:
+                    if j == len(blocks) - 1 and i != len(self.encoder_channels) - 1:
                         blocks_list.append(
                             make_block(
                                 in_channels,

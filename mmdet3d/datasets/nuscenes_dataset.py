@@ -4,11 +4,14 @@ import pyquaternion
 import tempfile
 from nuscenes.utils.data_classes import Box as NuScenesBox
 from os import path as osp
-
+from nuscenes.eval.common.utils import quaternion_yaw, Quaternion
 from mmdet.datasets import DATASETS
 from ..core import show_result
 from ..core.bbox import Box3DMode, Coord3DMode, LiDARInstance3DBoxes
 from .custom_3d import Custom3DDataset
+import copy
+import random
+from mmcv.parallel import DataContainer as DC
 
 
 @DATASETS.register_module()
@@ -153,7 +156,7 @@ class NuScenesDataset(Custom3DDataset):
         self.test_gt = test_gt
         ## 增加部分
         self.extrinsics_noise = extrinsics_noise # 外参是否扰动
-        assert extrinsics_noise_type in ['all', 'single'] 
+        assert extrinsics_noise_type in ['all', 'single']
         self.extrinsics_noise_type = extrinsics_noise_type # 外参扰动类型
         self.drop_frames = drop_frames # 是否丢帧
         self.drop_ratio = drop_set[0] # 丢帧比例：assert ratio in [10, 20, ..., 90]
@@ -166,14 +169,14 @@ class NuScenesDataset(Custom3DDataset):
             self.noise_data = noise_data[noise_sensor_type]
         else:
             self.noise_data = None
-        
+
         print('noise setting:')
         if self.drop_frames:
             print('frame drop setting: drop ratio:', self.drop_ratio, ', sensor type:', self.noise_sensor_type, ', drop type:', self.drop_type)
         if self.extrinsics_noise:
             assert noise_sensor_type=='camera'
             print(f'add {extrinsics_noise_type} noise to extrinsics')
-    
+
     ### for frop foreground points
     def __getitem__(self, idx):
         """Get item from infos according to the given index.
@@ -189,6 +192,7 @@ class NuScenesDataset(Custom3DDataset):
                 idx = self._rand_another(idx)
                 continue
             return data
+
     def get_cat_ids(self, idx):
         """Get category distribution of single scene.
 
@@ -255,6 +259,14 @@ class NuScenesDataset(Custom3DDataset):
             pts_filename=info['lidar_path'],
             sweeps=info['sweeps'],
             timestamp=info['timestamp'] / 1e6,
+            ego2global_translation=info['ego2global_translation'],
+            ego2global_rotation=info['ego2global_rotation'],
+            radar=info['radars'],
+            prev_idx=info['prev'],
+            next_idx=info['next'],
+            scene_token=info['scene_token'],
+            can_bus=info['can_bus'],
+            frame_idx=info['frame_idx'],
         )
 
         if self.noise_sensor_type == 'lidar':
@@ -311,7 +323,7 @@ class NuScenesDataset(Custom3DDataset):
                 lidar2img_rt = (viewpad @ lidar2cam_rt.T)
                 lidar2img_rts.append(lidar2img_rt)
                 caminfos.append(
-                    {'sensor2lidar_translation':sensor2lidar_translation, 
+                    {'sensor2lidar_translation':sensor2lidar_translation,
                     'sensor2lidar_rotation':sensor2lidar_rotation,
                     'cam_intrinsic':cam_info['cam_intrinsic']
                     })
@@ -326,6 +338,17 @@ class NuScenesDataset(Custom3DDataset):
         if not self.test_mode:
             annos = self.get_ann_info(index)
             input_dict['ann_info'] = annos
+
+        rotation = Quaternion(input_dict['ego2global_rotation'])
+        translation = input_dict['ego2global_translation']
+        can_bus = input_dict['can_bus']
+        can_bus[:3] = translation
+        can_bus[3:7] = rotation
+        patch_angle = quaternion_yaw(rotation) / np.pi * 180
+        if patch_angle < 0:
+            patch_angle += 360
+        can_bus[-2] = patch_angle / 180 * np.pi
+        can_bus[-1] = patch_angle
 
         return input_dict
 
@@ -500,7 +523,7 @@ class NuScenesDataset(Custom3DDataset):
         detail['{}/mAP'.format(metric_prefix)] = metrics['mean_ap']
         return detail
 
-    def format_results(self, results, jsonfile_prefix=None):
+    def format_results(self, results, jsonfile_prefix='./'):
         """Format the results to json (standard format for COCO evaluation).
 
         Args:
@@ -527,6 +550,7 @@ class NuScenesDataset(Custom3DDataset):
             tmp_dir = None
 
         if not isinstance(results[0], dict):
+            print(jsonfile_prefix)
             result_files = self._format_bbox(results, jsonfile_prefix)
         else:
             result_files = dict()
@@ -542,7 +566,7 @@ class NuScenesDataset(Custom3DDataset):
                  results,
                  metric='bbox',
                  logger=None,
-                 jsonfile_prefix=None,
+                 jsonfile_prefix='./eval/',
                  result_names=['pts_bbox'],
                  show=False,
                  out_dir=None):
@@ -645,9 +669,9 @@ def output_to_nusc_box(detection):
         # velocity = (
         # velo_val * np.cos(velo_ori), velo_val * np.sin(velo_ori), 0.0)
         box = NuScenesBox(
-            box_gravity_center[i],
-            box_dims[i],
-            quat,
+            box_gravity_center[i],  # center
+            box_dims[i],  # size
+            quat,  # heading angle
             label=labels[i],
             score=scores[i],
             velocity=velocity)
@@ -691,3 +715,192 @@ def lidar_nusc_box_to_global(info,
         box.translate(np.array(info['ego2global_translation']))
         box_list.append(box)
     return box_list
+
+
+@DATASETS.register_module()
+class CustomNuScenesDataset(NuScenesDataset):
+    r"""NuScenes Dataset.
+
+    This datset only add camera intrinsics and extrinsics to the results.
+    """
+
+    def __init__(self, queue_length=4, overlap_test=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.queue_length = queue_length
+        self.overlap_test = overlap_test
+
+    def prepare_train_data(self, index):
+        """
+        Training data preparation.
+        Args:
+            index (int): Index for accessing the target data.
+        Returns:
+            dict: Training data dict of the corresponding index.
+        """
+        queue = []
+        index_list = list(range(index-self.queue_length, index))
+        random.shuffle(index_list)
+        index_list = sorted(index_list[1:])
+        index_list.append(index)
+        for i in index_list:
+            i = max(0, i)
+            input_dict = self.get_data_info(i)
+            if input_dict is None:
+                return None
+            self.pre_pipeline(input_dict)
+            example = self.pipeline(input_dict)
+            if self.filter_empty_gt and \
+                    (example is None or ~(example['gt_labels_3d']._data != -1).any()):
+                return None
+            queue.append(example)
+        return self.union2one(queue)
+
+    def union2one(self, queue):
+        points_list = [each['points'] for each in queue]
+        img_list = [each['img'] for each in queue]
+        radar_list = [each['radar'] for each in queue]
+        flip_horizontal = [each['flip_horizontal'] for each in queue]
+        flip_vertical = [each['flip_vertical'] for each in queue]
+        aug_scale = [each['aug_scale'] for each in queue]
+        aug_theta = [each['aug_theta'] for each in queue]
+        aug_translation = [each['aug_translation'] for each in queue]
+        lidar_aug_matrix_list = [each['lidar_aug_matrix'] for each in queue]
+
+        metas_map = {}
+        prev_scene_token = None
+        prev_pos = None
+        prev_angle = None
+        for i, each in enumerate(queue):
+            metas_map[i] = each['img_metas'].data
+            if metas_map[i]['scene_token'] != prev_scene_token:
+                metas_map[i]['prev_bev_exists'] = False
+                prev_scene_token = metas_map[i]['scene_token']
+                prev_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                prev_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                metas_map[i]['can_bus'][:3] = 0
+                metas_map[i]['can_bus'][-1] = 0
+            else:
+                metas_map[i]['prev_bev_exists'] = True
+                tmp_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                tmp_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                metas_map[i]['can_bus'][:3] -= prev_pos
+                metas_map[i]['can_bus'][-1] -= prev_angle
+                prev_pos = copy.deepcopy(tmp_pos)
+                prev_angle = copy.deepcopy(tmp_angle)
+
+        queue[-1]['points'] = points_list # DC(torch.stack(points_list), cpu_only=False, stack=True)
+        queue[-1]['flip_horizontal'] = flip_horizontal
+        queue[-1]['flip_vertical'] = flip_vertical
+        queue[-1]['aug_scale'] = aug_scale
+        queue[-1]['aug_theta'] = aug_theta
+        queue[-1]['aug_translation'] = aug_translation
+        queue[-1]['img'] = img_list
+        queue[-1]['radar'] = radar_list
+        queue[-1]['lidar_aug_matrix'] = lidar_aug_matrix_list
+        queue[-1]['img_metas'] = DC(metas_map, cpu_only=True)
+        queue = queue[-1]
+        return queue
+
+
+    def __getitem__(self, idx):
+        """Get item from infos according to the given index.
+        Returns:
+            dict: Data dictionary of the corresponding index.
+        """
+        if self.test_mode:
+            return self.prepare_test_data(idx)
+        while True:
+            data = self.prepare_train_data(idx)
+            if data is None:
+                idx = self._rand_another(idx)
+                continue
+            return data
+
+
+@DATASETS.register_module()
+class CustomNuScenesDataset_camera(NuScenesDataset):
+    r"""NuScenes Dataset.
+
+    This datset only add camera intrinsics and extrinsics to the results.
+    """
+
+    def __init__(self, queue_length=4, overlap_test=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.queue_length = queue_length
+        self.overlap_test = overlap_test
+
+    def prepare_train_data(self, index):
+        """
+        Training data preparation.
+        Args:
+            index (int): Index for accessing the target data.
+        Returns:
+            dict: Training data dict of the corresponding index.
+        """
+        queue = []
+        index_list = list(range(index-self.queue_length, index))
+        random.shuffle(index_list)
+        index_list = sorted(index_list[1:])
+        index_list.append(index)
+        for i in index_list:
+            i = max(0, i)
+            input_dict = self.get_data_info(i)
+            if input_dict is None:
+                return None
+            self.pre_pipeline(input_dict)
+            example = self.pipeline(input_dict)
+            if self.filter_empty_gt and \
+                    (example is None or ~(example['gt_labels_3d']._data != -1).any()):
+                return None
+            queue.append(example)
+        return self.union2one(queue)
+
+    def union2one(self, queue):
+        points_list = [each['points'] for each in queue]
+        img_list = [each['img'] for each in queue]
+        radar_list = [each['radar'] for each in queue]
+
+        metas_map = {}
+        prev_scene_token = None
+        prev_pos = None
+        prev_angle = None
+        for i, each in enumerate(queue):
+            metas_map[i] = each['img_metas'].data
+            if metas_map[i]['scene_token'] != prev_scene_token:
+                metas_map[i]['prev_bev_exists'] = False
+                prev_scene_token = metas_map[i]['scene_token']
+                prev_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                prev_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                metas_map[i]['can_bus'][:3] = 0
+                metas_map[i]['can_bus'][-1] = 0
+            else:
+                metas_map[i]['prev_bev_exists'] = True
+                tmp_pos = copy.deepcopy(metas_map[i]['can_bus'][:3])
+                tmp_angle = copy.deepcopy(metas_map[i]['can_bus'][-1])
+                metas_map[i]['can_bus'][:3] -= prev_pos
+                metas_map[i]['can_bus'][-1] -= prev_angle
+                prev_pos = copy.deepcopy(tmp_pos)
+                prev_angle = copy.deepcopy(tmp_angle)
+
+        queue[-1]['points'] = points_list # DC(torch.stack(points_list), cpu_only=False, stack=True)
+        queue[-1]['img'] = img_list
+        queue[-1]['radar'] = radar_list
+        queue[-1]['img_metas'] = DC(metas_map, cpu_only=True)
+        queue = queue[-1]
+        return queue
+
+
+    def __getitem__(self, idx):
+        """Get item from infos according to the given index.
+        Returns:
+            dict: Data dictionary of the corresponding index.
+        """
+        if self.test_mode:
+            return self.prepare_test_data(idx)
+        while True:
+            data = self.prepare_train_data(idx)
+            if data is None:
+                idx = self._rand_another(idx)
+                continue
+            return data
+
