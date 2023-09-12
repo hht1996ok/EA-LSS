@@ -29,7 +29,7 @@ In recent years, great progress has been made in the Lift-Splat-Shot-based (LSS-
 | Method                                                                   | mAP        | NDS        |
 | ------------------------------------------------------------------------- | ---------- | ---------- |
 | BEVFusion(Peking University)    |  71.3       | 73.3       |
-| [**+EA-LSS**](configs/EABEV/eabev_tf_4x8_10e_nusc_aug.py)     | **72.2**     | **74.4**    |
+| [**+EA-LSS**](configs/EALSS/eabev_tf_4x8_10e_nusc_aug.py)     | **72.2**     | **74.4**    |
 | **+EA-LSS***     | **76.6**     | **77.6**    |
 
 *reprsent the test time augment and model ensemble.
@@ -44,7 +44,7 @@ In recent years, great progress has been made in the Lift-Splat-Shot-based (LSS-
 | BEVFusion(MIT)    |  68.5       | 71.4       | 119.2 |
 |  **+EA-LSS**    | **69.4**       | **71.8**   | 123.6 |
 | BEVFusion(Peking University)    |  69.6       | 72.1       | 190.3 |
-|  [ **+EA-LSS**  ](configs/EABEV/eabev_tf_4x8_10e_nusc_aug.py)     | **71.2**      | **73.1**    | 194.9|
+|  [ **+EA-LSS**  ](configs/EALSS/eabev_tf_4x8_10e_nusc_aug.py)     | **71.2**      | **73.1**    | 194.9|
 
 
 ### Visualization results
