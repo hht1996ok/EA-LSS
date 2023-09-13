@@ -369,7 +369,7 @@ class EALSS_CAM(MVXFasterRCNN):
         ]
         return bbox_results
 
-    def simple_test(self, points, img_metas, radar, img=None, rescale=False):
+    def simple_test(self, points, img_metas, img=None, rescale=False):
         """Test function without augmentaiton."""
         feature_dict = self.extract_feat(
             points, img=img, img_metas=img_metas)

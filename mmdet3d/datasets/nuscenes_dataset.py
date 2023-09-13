@@ -261,7 +261,6 @@ class NuScenesDataset(Custom3DDataset):
             timestamp=info['timestamp'] / 1e6,
             ego2global_translation=info['ego2global_translation'],
             ego2global_rotation=info['ego2global_rotation'],
-            radar=info['radars'],
             prev_idx=info['prev'],
             next_idx=info['next'],
             scene_token=info['scene_token'],
@@ -758,7 +757,6 @@ class CustomNuScenesDataset(NuScenesDataset):
     def union2one(self, queue):
         points_list = [each['points'] for each in queue]
         img_list = [each['img'] for each in queue]
-        radar_list = [each['radar'] for each in queue]
         flip_horizontal = [each['flip_horizontal'] for each in queue]
         flip_vertical = [each['flip_vertical'] for each in queue]
         aug_scale = [each['aug_scale'] for each in queue]
@@ -795,7 +793,6 @@ class CustomNuScenesDataset(NuScenesDataset):
         queue[-1]['aug_theta'] = aug_theta
         queue[-1]['aug_translation'] = aug_translation
         queue[-1]['img'] = img_list
-        queue[-1]['radar'] = radar_list
         queue[-1]['lidar_aug_matrix'] = lidar_aug_matrix_list
         queue[-1]['img_metas'] = DC(metas_map, cpu_only=True)
         queue = queue[-1]
@@ -858,7 +855,6 @@ class CustomNuScenesDataset_camera(NuScenesDataset):
     def union2one(self, queue):
         points_list = [each['points'] for each in queue]
         img_list = [each['img'] for each in queue]
-        radar_list = [each['radar'] for each in queue]
 
         metas_map = {}
         prev_scene_token = None
@@ -884,7 +880,6 @@ class CustomNuScenesDataset_camera(NuScenesDataset):
 
         queue[-1]['points'] = points_list # DC(torch.stack(points_list), cpu_only=False, stack=True)
         queue[-1]['img'] = img_list
-        queue[-1]['radar'] = radar_list
         queue[-1]['img_metas'] = DC(metas_map, cpu_only=True)
         queue = queue[-1]
         return queue

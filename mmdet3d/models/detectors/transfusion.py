@@ -176,18 +176,14 @@ class TransFusionDetector(MVXTwoStageDetector):
         Returns:
             dict: Losses of each branch.
         """
-        # print(len(img_feats), 'pts_bbox_head')
-        # for i in range(len(img_feats)):
-        #     print(img_feats[i].shape)
-        outs = self.pts_bbox_head(pts_feats, img_feats, img_metas, gt_bboxes_3d)
-        # outs = self.pts_bbox_head(pts_feats, img_feats, img_metas)
+        outs = self.pts_bbox_head(pts_feats, img_metas, gt_bboxes_3d)
         loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs, img_metas]
         losses = self.pts_bbox_head.loss(*loss_inputs)
         return losses
 
     def simple_test_pts(self, x, x_img, img_metas, rescale=False):
         """Test function of point cloud branch."""
-        outs = self.pts_bbox_head(x, x_img, img_metas)
+        outs = self.pts_bbox_head(x, img_metas)
         bbox_list = self.pts_bbox_head.get_bboxes(
             outs, img_metas, rescale=rescale)
         bbox_results = [
@@ -196,7 +192,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         ]
         return bbox_results
 
-    def simple_test(self, points, img_metas, radar=None, img=None, rescale=False):
+    def simple_test(self, points, img_metas, img=None, rescale=False):
         """Test function without augmentaiton."""
         img_feats, pts_feats = self.extract_feat(
             points, img=img, img_metas=img_metas)
@@ -214,9 +210,9 @@ class TransFusionDetector(MVXTwoStageDetector):
                 result_dict['img_bbox'] = img_bbox
         return bbox_list
 
-    def aug_test(self, points, img_metas, radar=None, img=None, lidar_aug_matrix=None, rescale=False):
+    def aug_test(self, points, img_metas, img=None, lidar_aug_matrix=None, rescale=False):
         """Test function with augmentaiton."""
-        img_feats, pts_feats = self.extract_feats(points, img=img, radar=radar, img_metas=img_metas, lidar_aug_matrix=lidar_aug_matrix)
+        img_feats, pts_feats = self.extract_feats(points, img=img, img_metas=img_metas, lidar_aug_matrix=lidar_aug_matrix)
 
         bbox_list = dict()
         if pts_feats and self.with_pts_bbox:
@@ -224,7 +220,7 @@ class TransFusionDetector(MVXTwoStageDetector):
             bbox_list.update(pts_bbox=bbox_pts)
         return [bbox_list]
 
-    def extract_feats(self, points, img, radar, img_metas, lidar_aug_matrix):
+    def extract_feats(self, points, img, img_metas, lidar_aug_matrix):
         """Extract point and image features of multiple samples."""
         img_feats_list = []
         pts_feats_list = []
@@ -240,7 +236,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         # only support aug_test for one sample
         aug_bboxes = []
         for x, img_feature, img_meta in zip(feats, x_img, img_metas):
-            outs = self.pts_bbox_head(x, img_feature, img_meta)
+            outs = self.pts_bbox_head(x, img_meta)
             bbox_list = self.pts_bbox_head.get_bboxes(
                 outs, img_meta, rescale=rescale)
             bbox_list = [
@@ -249,6 +245,5 @@ class TransFusionDetector(MVXTwoStageDetector):
             ]
             aug_bboxes.append(bbox_list[0])
         # after merging, bboxes will be rescaled to the original image size
-        merged_bboxes = merge_aug_bboxes_3d(aug_bboxes, img_metas,
-                                            self.pts_bbox_head.test_cfg)
+        merged_bboxes = merge_aug_bboxes_3d(aug_bboxes, img_metas, self.pts_bbox_head.test_cfg)
         return merged_bboxes
