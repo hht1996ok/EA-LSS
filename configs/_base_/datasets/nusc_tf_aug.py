@@ -79,12 +79,8 @@ test_pipeline = [
     dict(
         type='MultiScaleFlipAug3D',
         img_scale=img_scale,
-        pts_scale_ratio=[0.9, 0.95, 1.0, 1.05, 1.1],
-        flip=True,
-        #rot_range=[-0.19625, 0.0, 0.19625],
-        #translation_std=[-0.25, -0.125, 0.0, 0.125, 0.25],
-        pcd_horizontal_flip=True,
-        pcd_vertical_flip=True,
+        #pts_scale_ratio=[0.9, 0.95, 1.0, 1.05, 1.1],
+        #flip=True,
         transforms=[
             dict(
                 type='GlobalRotScaleTransBEV',
