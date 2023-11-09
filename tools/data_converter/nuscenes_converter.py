@@ -17,6 +17,7 @@ nus_categories = ('car', 'truck', 'trailer', 'bus', 'construction_vehicle',
 
 
 def create_nuscenes_infos(root_path,
+                          can_bus_root_path,
                           info_prefix,
                           version='v1.0-trainval',
                           max_sweeps=10):
@@ -33,7 +34,9 @@ def create_nuscenes_infos(root_path,
             Default: 10
     """
     from nuscenes.nuscenes import NuScenes
+    from nuscenes.can_bus.can_bus_api import NuScenesCanBus
     nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+    nusc_can_bus = NuScenesCanBus(dataroot=can_bus_root_path)
     from nuscenes.utils import splits
     available_vers = ['v1.0-trainval', 'v1.0-test', 'v1.0-mini']
     assert version in available_vers
@@ -52,8 +55,7 @@ def create_nuscenes_infos(root_path,
     # filter existing scenes.
     available_scenes = get_available_scenes(nusc)
     available_scene_names = [s['name'] for s in available_scenes]
-    train_scenes = list(
-        filter(lambda x: x in available_scene_names, train_scenes))
+    train_scenes = list(filter(lambda x: x in available_scene_names, train_scenes))
     val_scenes = list(filter(lambda x: x in available_scene_names, val_scenes))
     train_scenes = set([
         available_scenes[available_scene_names.index(s)]['token']
@@ -71,26 +73,28 @@ def create_nuscenes_infos(root_path,
         print('train scene: {}, val scene: {}'.format(
             len(train_scenes), len(val_scenes)))
     train_nusc_infos, val_nusc_infos = _fill_trainval_infos(
-        nusc, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
+        nusc, nusc_can_bus, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
 
     metadata = dict(version=version)
     if test:
         print('test sample: {}'.format(len(train_nusc_infos)))
         data = dict(infos=train_nusc_infos, metadata=metadata)
-        info_path = osp.join(root_path,
-                             '{}_infos_test.pkl'.format(info_prefix))
+        info_path = osp.join(root_path, '{}_infos_test.pkl'.format(info_prefix))
         mmcv.dump(data, info_path)
     else:
         print('train sample: {}, val sample: {}'.format(
             len(train_nusc_infos), len(val_nusc_infos)))
         data = dict(infos=train_nusc_infos, metadata=metadata)
-        info_path = osp.join(root_path,
-                             '{}_infos_train.pkl'.format(info_prefix))
+        info_path = osp.join(root_path, '{}_infos_train.pkl'.format(info_prefix))
         mmcv.dump(data, info_path)
+
         data['infos'] = val_nusc_infos
-        info_val_path = osp.join(root_path,
-                                 '{}_infos_val.pkl'.format(info_prefix))
+        info_val_path = osp.join(root_path, '{}_infos_val.pkl'.format(info_prefix))
         mmcv.dump(data, info_val_path)
+
+        data['infos'] = train_nusc_infos + val_nusc_infos
+        info_trainval_path = osp.join(root_path, '{}_infos_trainval.pkl'.format(info_prefix))
+        mmcv.dump(data, info_trainval_path)
 
 
 def get_available_scenes(nusc):
@@ -134,7 +138,32 @@ def get_available_scenes(nusc):
     return available_scenes
 
 
+def _get_can_bus_info(nusc, nusc_can_bus, sample):
+    scene_name = nusc.get('scene', sample['scene_token'])['name']
+    sample_timestamp = sample['timestamp']
+    try:
+        pose_list = nusc_can_bus.get_messages(scene_name, 'pose')
+    except:
+        return np.zeros(18)  # server scenes do not have can bus information.
+    can_bus = []
+    # during each scene, the first timestamp of can_bus may be large than the first sample's timestamp
+    last_pose = pose_list[0]
+    for i, pose in enumerate(pose_list):
+        if pose['utime'] > sample_timestamp:
+            break
+        last_pose = pose
+    _ = last_pose.pop('utime')  # useless
+    pos = last_pose.pop('pos')
+    rotation = last_pose.pop('orientation')
+    can_bus.extend(pos)
+    can_bus.extend(rotation)
+    for key in last_pose.keys():
+        can_bus.extend(pose[key])  # 16 elements
+    can_bus.extend([0., 0.])
+    return np.array(can_bus)
+
 def _fill_trainval_infos(nusc,
+                         nusc_can_bus,
                          train_scenes,
                          val_scenes,
                          test=False,
@@ -155,7 +184,7 @@ def _fill_trainval_infos(nusc,
     """
     train_nusc_infos = []
     val_nusc_infos = []
-
+    frame_idx = 0
     for sample in mmcv.track_iter_progress(nusc.sample):
         lidar_token = sample['data']['LIDAR_TOP']
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
@@ -165,18 +194,30 @@ def _fill_trainval_infos(nusc,
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
 
         mmcv.check_file_exist(lidar_path)
+        can_bus = _get_can_bus_info(nusc, nusc_can_bus, sample)
 
         info = {
             'lidar_path': lidar_path,
             'token': sample['token'],
+            'prev': sample['prev'],
+            'next': sample['next'],
             'sweeps': [],
+            'can_bus': can_bus,
+            'frame_idx': frame_idx,
             'cams': dict(),
+            'radars': dict(),
+            'scene_token': sample['scene_token'],  # temporal related info
             'lidar2ego_translation': cs_record['translation'],
             'lidar2ego_rotation': cs_record['rotation'],
             'ego2global_translation': pose_record['translation'],
             'ego2global_rotation': pose_record['rotation'],
             'timestamp': sample['timestamp'],
         }
+
+        if sample['next'] == '':
+            frame_idx = 0
+        else:
+            frame_idx += 1
 
         l2e_r = info['lidar2ego_rotation']
         l2e_t = info['lidar2ego_translation']
@@ -197,18 +238,36 @@ def _fill_trainval_infos(nusc,
         for cam in camera_types:
             cam_token = sample['data'][cam]
             cam_path, _, cam_intrinsic = nusc.get_sample_data(cam_token)
-            cam_info = obtain_sensor2top(nusc, cam_token, l2e_t, l2e_r_mat,
-                                         e2g_t, e2g_r_mat, cam)
+            cam_info = obtain_sensor2top(nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam)
             cam_info.update(cam_intrinsic=cam_intrinsic)
             info['cams'].update({cam: cam_info})
+
+        radar_names = ['RADAR_FRONT', 'RADAR_FRONT_LEFT', 'RADAR_FRONT_RIGHT',  'RADAR_BACK_LEFT', 'RADAR_BACK_RIGHT']
+        for radar_name in radar_names:
+            radar_token = sample['data'][radar_name]
+            radar_rec = nusc.get('sample_data', radar_token)
+            sweeps = []
+            while len(sweeps) < 5:
+                if not radar_rec['prev'] == '':
+                    radar_path, _, radar_intrin = nusc.get_sample_data(radar_token)
+                    radar_info = obtain_sensor2top(nusc, radar_token, l2e_t, l2e_r_mat,
+                                                e2g_t, e2g_r_mat, radar_name)
+                    sweeps.append(radar_info)
+                    radar_token = radar_rec['prev']
+                    radar_rec = nusc.get('sample_data', radar_token)
+                else:
+                    radar_path, _, radar_intrin = nusc.get_sample_data(radar_token)
+                    radar_info = obtain_sensor2top(nusc, radar_token, l2e_t, l2e_r_mat,
+                                                e2g_t, e2g_r_mat, radar_name)
+                    sweeps.append(radar_info)
+            info['radars'].update({radar_name: sweeps})
 
         # obtain sweeps for a single key-frame
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
         sweeps = []
         while len(sweeps) < max_sweeps:
             if not sd_rec['prev'] == '':
-                sweep = obtain_sensor2top(nusc, sd_rec['prev'], l2e_t,
-                                          l2e_r_mat, e2g_t, e2g_r_mat, 'lidar')
+                sweep = obtain_sensor2top(nusc, sd_rec['prev'], l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, 'lidar')
                 sweeps.append(sweep)
                 sd_rec = nusc.get('sample_data', sd_rec['prev'])
             else:
