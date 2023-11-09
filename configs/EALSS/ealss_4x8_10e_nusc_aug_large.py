@@ -131,6 +131,9 @@ model = dict(
             score_threshold=0.0,
             code_size=10,
         ),
+        use_FGD=True,
+        use_EADF=True,
+        use_normal_depth_loss=True,
         loss_cls=dict(type='FocalLoss', use_sigmoid=True, gamma=2, alpha=0.25, reduction='mean', loss_weight=1.0),
         loss_bbox=dict(type='L1Loss', reduction='mean', loss_weight=0.25),
         loss_heatmap=dict(type='GaussianFocalLoss', reduction='mean', loss_weight=1.0),
@@ -198,8 +201,8 @@ log_config = dict(
             dict(type='TensorboardLoggerHook')])
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = 'model/lidar_branch/XX.pth'
-load_lift_from = 'model/camera_branch/XX.pth'
+load_from = None # 'model/lidar_branch/XX.pth'
+#load_lift_from = 'model/camera_branch/XX.pth'
 
 resume_from = None
 workflow = [('train', 1)]

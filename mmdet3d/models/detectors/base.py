@@ -11,7 +11,7 @@ from mmdet.models.detectors import BaseDetector
 class Base3DDetector(BaseDetector):
     """Base class for detectors."""
 
-    def forward_test(self, points, img_metas, radar=None, img=None, **kwargs):
+    def forward_test(self, points, img_metas, img=None, **kwargs):
         """
         Args:
             points (list[torch.Tensor]): the outer list indicates test-time
@@ -38,10 +38,9 @@ class Base3DDetector(BaseDetector):
 
         if num_augs == 1:
             img = [img] if img is None else img
-            radar = [radar] if radar is None else radar
-            return self.simple_test(points[0], img_metas[0], radar[0], img[0], **kwargs)
+            return self.simple_test(points[0], img_metas[0], img[0], **kwargs)
         else:
-            return self.aug_test(points, img_metas, radar, img, **kwargs)
+            return self.aug_test(points, img_metas, img, **kwargs)
 
     @auto_fp16(apply_to=('img', 'points'))
     def forward(self, return_loss=True, **kwargs):

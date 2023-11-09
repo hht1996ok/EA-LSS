@@ -147,7 +147,7 @@ class EALSS(MVXFasterRCNN):
             x = self.pts_neck(x)
         return x
 
-    def extract_feat(self, points, img, radar, img_metas, img_aug_matrix=None, lidar_aug_matrix=None, gt_bboxes_3d=None):
+    def extract_feat(self, points, img, img_metas, img_aug_matrix=None, lidar_aug_matrix=None, gt_bboxes_3d=None):
         """Extract features from images and points."""
         #pdb.set_trace()
         img_size = img.size()  # b, n, 3, 448, 800
@@ -321,7 +321,6 @@ class EALSS(MVXFasterRCNN):
     def forward_train(self,
                       points=None,
                       img_metas=None,
-                      radar=None,
                       gt_bboxes_3d=None,
                       gt_labels_3d=None,
                       gt_labels=None,
@@ -359,7 +358,7 @@ class EALSS(MVXFasterRCNN):
         """
         ##############################
         feature_dict = self.extract_feat(
-            points, img=img, radar=radar, img_metas=img_metas, img_aug_matrix=img_aug_matrix, lidar_aug_matrix=lidar_aug_matrix)
+            points, img=img, img_metas=img_metas, img_aug_matrix=img_aug_matrix, lidar_aug_matrix=lidar_aug_matrix)
         img_feats = feature_dict['img_feats']
         img_bev_feats = feature_dict['img_bev_feats']
         pts_feats = feature_dict['pts_feats']
@@ -367,7 +366,7 @@ class EALSS(MVXFasterRCNN):
 
         losses = dict()
         if pts_feats:
-            losses_pts = self.forward_pts_train(pts_feats, img_feats, radar, gt_bboxes_3d,
+            losses_pts = self.forward_pts_train(pts_feats, img_feats, gt_bboxes_3d,
                                                 gt_labels_3d, img_metas,
                                                 gt_bboxes_ignore)
             losses.update(losses_pts)
@@ -381,7 +380,6 @@ class EALSS(MVXFasterRCNN):
     def forward_pts_train(self,
                           pts_feats,
                           img_feats,
-                          radar,
                           gt_bboxes_3d,
                           gt_labels_3d,
                           img_metas,
@@ -429,12 +427,12 @@ class EALSS(MVXFasterRCNN):
         ]
         return bbox_results
 
-    def simple_test(self, points, img_metas, radar=None, img=None, img_aug_matrix=None, rescale=False, lidar_aug_matrix=None):
+    def simple_test(self, points, img_metas, img=None, img_aug_matrix=None, rescale=False, lidar_aug_matrix=None):
         """Test function without augmentaiton."""
         if img_aug_matrix is not None:
             img_aug_matrix = img_aug_matrix[0]
         feature_dict = self.extract_feat(
-            points, img=img, radar=radar, img_metas=img_metas, img_aug_matrix=img_aug_matrix)
+            points, img=img, img_metas=img_metas, img_aug_matrix=img_aug_matrix)
         pts_feats = feature_dict['pts_feats']
         img_feats = feature_dict['img_feats']
 
@@ -446,9 +444,9 @@ class EALSS(MVXFasterRCNN):
                 result_dict['pts_bbox'] = pts_bbox
         return bbox_list
 
-    def aug_test(self, points, img_metas, radar=None, img=None, lidar_aug_matrix=None, rescale=False):
+    def aug_test(self, points, img_metas, img=None, lidar_aug_matrix=None, rescale=False):
         """Test function with augmentaiton."""
-        img_feats, pts_feats = self.extract_feats(points, img=img, radar=radar, img_metas=img_metas, lidar_aug_matrix=lidar_aug_matrix)
+        img_feats, pts_feats = self.extract_feats(points, img=img, img_metas=img_metas, lidar_aug_matrix=lidar_aug_matrix)
 
         bbox_list = dict()
         if pts_feats and self.with_pts_bbox:
@@ -456,12 +454,12 @@ class EALSS(MVXFasterRCNN):
             bbox_list.update(pts_bbox=bbox_pts)
         return [bbox_list]
 
-    def extract_feats(self, points, img, radar, img_metas, lidar_aug_matrix):
+    def extract_feats(self, points, img, img_metas, lidar_aug_matrix):
         """Extract point and image features of multiple samples."""
         img_feats_list = []
         pts_feats_list = []
         for i in range(len(points)):
-            feature_dict = self.extract_feat(points[i], img=img[i], radar=radar[i], img_metas=img_metas[i], lidar_aug_matrix=lidar_aug_matrix[i])
+            feature_dict = self.extract_feat(points[i], img=img[i], img_metas=img_metas[i], lidar_aug_matrix=lidar_aug_matrix[i])
             img_feats = feature_dict['img_feats']
             pts_feats = feature_dict['pts_feats']
             img_feats_list.append(img_feats)
@@ -483,5 +481,5 @@ class EALSS(MVXFasterRCNN):
             ]
             aug_bboxes.append(bbox_list[0])
         # after merging, bboxes will be rescaled to the original image size
-        merged_bboxes = merge_aug_bboxes_3d_wbf(aug_bboxes, img_metas, self.pts_bbox_head.test_cfg)
+        merged_bboxes = merge_aug_bboxes_3d(aug_bboxes, img_metas, self.pts_bbox_head.test_cfg)
         return merged_bboxes
